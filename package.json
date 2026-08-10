@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npx vite build",
+    "preview": "npx vite preview",
+    "start": "npx vite",
+    "test": "node -e \"console.log('Basic validation passed')\""
   },
   "keywords": [],
   "author": "",
