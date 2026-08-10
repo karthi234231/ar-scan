@@ -1,0 +1,20 @@
+
+
+{
+  "version": 1,
+  "targetSrc": "./assets/targets/card.mind",
+  "experiences": [
+    {
+      "id": "card-001",
+      "targetIndex": 0,
+      "videoMp4Src": "./assets/video/overlay.mp4",
+      "videoWebmSrc": "./assets/video/overlay.webm",
+      "posterSrc": "./assets/poster/video-poster.jpg",
+      "cardAspectRatio": 0.714,
+      "videoAspectRatio": 1.778,
+      "overlayWidth": 1,
+      "overlayYOffset": 0,
+      "overlayZOffset": 0.01
+    }
+  ]
+}

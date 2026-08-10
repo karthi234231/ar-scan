@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Compile card.mind</title>
+    <style>
+      body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 2rem; }
+      #progress { margin: 1rem 0; font-weight: bold; }
+      #status { margin: 1rem 0; }
+      button { padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Compile card.mind from IMG_1607.JPG</h1>
+    <p>This page uses the browser-based MindAR compiler to generate the <code>card.mind</code> target file.</p>
+    <button id="compile-btn">Compile & Download card.mind</button>
+    <div id="progress">Ready</div>
+    <div id="status"></div>
+
+    <script type="module">
+      import compiler from "@maherboughdiri/mind-ar-compiler";
+
+      const btn = document.getElementById("compile-btn");
+      const progressEl = document.getElementById("progress");
+      const statusEl = document.getElementById("status");
+
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        progressEl.textContent = "Loading image...";
+        statusEl.textContent = "";
+
+        try {
+          const resp = await fetch("/assets/targets/IMG_1607.JPG");
+          if (!resp.ok) throw new Error(`Failed to load image: ${resp.status}`);
+          const blob = await resp.blob();
+          const file = new File([blob], "IMG_1607.JPG", { type: "image/jpeg" });
+
+          progressEl.textContent = "Compiling (this may take 30-120s)...";
+          const target = await compiler.compileFiles([file], "progress");
+          compiler.download(target, "card");
+
+          progressEl.textContent = "Done! card.mind downloaded. Move it to assets/targets/card.mind";
+          statusEl.textContent = `Compiled ${blob.size} bytes image → card.mind`;
+        } catch (err) {
+          progressEl.textContent = "Compilation FAILED";
+          statusEl.textContent = String(err?.message || err);
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

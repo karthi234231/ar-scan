@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.tgz
+package-lock.json
+compile-output.log
+vite-server.log
+compile-src/
+package/
+mindar-compiler-src/
