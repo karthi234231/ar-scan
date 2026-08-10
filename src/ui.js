@@ -10,6 +10,9 @@ const REQUIRED_ELEMENTS = {
   status: "#status",
   errorMessage: "#error-message",
   scanGuide: "#scan-guide",
+  cameraPopup: "#camera-permission-popup",
+  cameraPopupAllow: "#camera-allow",
+  cameraPopupDeny: "#camera-deny",
 };
 
 let cachedElements = null;
@@ -83,13 +86,22 @@ export function setScanGuideVisible(isVisible) {
   scanGuide.hidden = !isVisible;
 }
 
+export function setCameraPermissionPopupVisible(isVisible) {
+  const { cameraPopup } = getUIElements();
+  if (cameraPopup) {
+    cameraPopup.hidden = !isVisible;
+  }
+}
+
 export function bindUIHandlers(handlers = {}) {
-  const { startButton, muteButton, replayButton } = getUIElements();
+  const { startButton, muteButton, replayButton, cameraPopupAllow, cameraPopupDeny } = getUIElements();
 
   if (boundHandlers) {
     startButton.removeEventListener("click", boundHandlers.start);
     muteButton.removeEventListener("click", boundHandlers.mute);
     replayButton.removeEventListener("click", boundHandlers.replay);
+    cameraPopupAllow?.removeEventListener("click", boundHandlers.cameraAllow);
+    cameraPopupDeny?.removeEventListener("click", boundHandlers.cameraDeny);
   }
 
   const safeCall = (handlerName) => async (event) => {
@@ -107,10 +119,13 @@ export function bindUIHandlers(handlers = {}) {
     start: safeCall("onStart"),
     mute: safeCall("onMuteToggle"),
     replay: safeCall("onReplay"),
+    cameraAllow: safeCall("onCameraAllow"),
+    cameraDeny: safeCall("onCameraDeny"),
   };
 
   startButton.addEventListener("click", boundHandlers.start);
   muteButton.addEventListener("click", boundHandlers.mute);
   replayButton.addEventListener("click", boundHandlers.replay);
+  cameraPopupAllow?.addEventListener("click", boundHandlers.cameraAllow);
+  cameraPopupDeny?.addEventListener("click", boundHandlers.cameraDeny);
 }
-

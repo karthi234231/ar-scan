@@ -3,6 +3,7 @@ import {
   clearError,
   getUIElements,
   setError,
+  setCameraPermissionPopupVisible,
   setControlsVisible,
   setLoading,
   setMutedState,
@@ -113,6 +114,74 @@ function detectSupport() {
   };
 }
 
+/**
+ * Requests camera permission on mobile browsers (especially iOS Safari).
+ * On iOS, permission must be explicitly requested before getUserMedia will work.
+ * Shows a popup with an "Allow Camera" button that triggers the permission prompt.
+ */
+async function requestCameraPermission() {
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "[::1]";
+
+  // On iOS, use the permissions API if available
+  if (typeof navigator.permissions !== "undefined" && navigator.permissions.query) {
+    try {
+      const permission = await navigator.permissions.query({ name: "camera" });
+      if (permission.state === "granted") {
+        return { granted: true };
+      }
+      if (permission.state === "denied") {
+        return { granted: false, reason: "denied" };
+      }
+      // Prompt the user
+      return { granted: false, needsPrompt: true };
+    } catch (e) {
+      // Fall through to default handling
+    }
+  }
+
+  // On non-secure contexts, camera won't work anyway
+  if (!window.isSecureContext && !isLocalhost) {
+    return { granted: false, reason: "insecure-context" };
+  }
+
+  return { granted: false, needsPrompt: true };
+}
+
+/**
+ * Proactively asks the browser for camera access so the native permission
+ * dialog is shown. This is critical on iOS Safari and mobile Chrome.
+ */
+async function promptForCameraAccess() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
+
+    // Stop the track immediately - we just needed the permission
+    const tracks = stream.getTracks();
+    for (const track of tracks) {
+      if (track && typeof track.stop === "function") {
+        track.stop();
+      }
+    }
+
+    return { granted: true };
+  } catch (error) {
+    const message = String(error?.message ?? "").toLowerCase();
+    if (message.includes("permission") || message.includes("denied")) {
+      return { granted: false, reason: "denied" };
+    }
+    if (message.includes("insecure")) {
+      return { granted: false, reason: "insecure-context" };
+    }
+    return { granted: false, reason: "unknown", error };
+  }
+}
+
 async function startScanner() {
   if (scannerStarted || sessionState === "starting") {
     return;
@@ -133,7 +202,7 @@ async function startScanner() {
       "manifest load",
       "manifest-load-start",
       "manifest-load-end",
-    );
+    ); 
 
     markPerformance("asset-preflight-start");
     await preflightManifestAssets(manifest);
@@ -190,6 +259,66 @@ async function startScanner() {
     setLoading(false);
     setStartEnabled(!scannerStarted);
   }
+}
+
+async function handleCameraAllow() {
+  // Hide the popup and request camera access
+  setCameraPermissionPopupVisible(false);
+  setStatus("Requesting camera access...");
+  setStartEnabled(false);
+
+  const result = await promptForCameraAccess();
+
+  if (result.granted) {
+    setStatus("Camera access granted");
+    // Now proceed with starting the scanner
+    await startScanner();
+  } else {
+    if (result.reason === "denied") {
+      setError("Camera access was denied. Please enable camera permission in your browser settings.");
+    } else if (result.reason === "insecure-context") {
+      setError("Open this scanner from HTTPS or localhost.");
+    } else {
+      setError("Camera access failed. Check browser settings and try again.");
+    }
+    setStatus("Camera access required");
+    setStartEnabled(true);
+  }
+}
+
+function handleCameraDeny() {
+  setCameraPermissionPopupVisible(false);
+  setError("Camera access is required for AR scanning. Tap Start to try again.");
+  setStatus("Camera permission denied");
+}
+
+function checkCameraPermission() {
+  requestCameraPermission().then((result) => {
+    if (result.granted) {
+      // Permission already granted, just let the user tap Start normally
+      return;
+    }
+
+    if (result.reason === "denied") {
+      setError("Camera permission was denied. Enable it in browser settings.");
+      setStatus("Camera permission denied");
+      setStartEnabled(true);
+      return;
+    }
+
+    if (result.reason === "insecure-context") {
+      setError("Open this scanner from HTTPS or localhost.");
+      setStatus("Scanner unavailable");
+      setStartEnabled(false);
+      return;
+    }
+
+    // Need to show the camera permission popup
+    if (result.needsPrompt) {
+      setCameraPermissionPopupVisible(true);
+      setStatus("Tap Allow to grant camera access");
+    }
+  });
 }
 
 async function handleTargetFound(targetIndex) {
@@ -506,12 +635,17 @@ function main() {
 
   if (!support.supported) {
     setError(support.message);
+  } else {
+    // Check camera permission and show popup if needed
+    checkCameraPermission();
   }
 
   bindUIHandlers({
     onStart: startScanner,
     onMuteToggle: toggleMute,
     onReplay: replayVideo,
+    onCameraAllow: handleCameraAllow,
+    onCameraDeny: handleCameraDeny,
   });
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -519,4 +653,3 @@ function main() {
 }
 
 main();
-
