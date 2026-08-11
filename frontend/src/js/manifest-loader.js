@@ -1,15 +1,38 @@
-export async function loadExperienceManifest(manifestSrc) {
-  const response = await fetch(manifestSrc, {
-    cache: "no-store",
-    credentials: "same-origin",
-  });
+export async function loadExperienceManifest(manifestSrc, fallbackSrc = null) {
+  try {
+    const response = await fetch(manifestSrc, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
 
-  if (!response.ok) {
-    throw new Error(`Manifest failed to load: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Manifest failed to load: ${response.status}`);
+    }
+
+    const manifest = await response.json();
+
+    // If backend manifest has no experiences, fall back to static assets
+    if (!manifest.experiences || manifest.experiences.length === 0) {
+      throw new Error("Backend manifest is empty");
+    }
+
+    return normalizeManifest(manifest);
+  } catch (error) {
+    // If backend manifest fails or is empty, fall back to static assets
+    if (fallbackSrc) {
+      console.warn(`[manifest] Backend manifest unavailable (${error.message}), falling back to ${fallbackSrc}`);
+      const fallbackResponse = await fetch(fallbackSrc, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!fallbackResponse.ok) {
+        throw new Error(`Fallback manifest failed to load: ${fallbackResponse.status}`);
+      }
+      const fallbackManifest = await fallbackResponse.json();
+      return normalizeManifest(fallbackManifest);
+    }
+    throw error;
   }
-
-  const manifest = await response.json();
-  return normalizeManifest(manifest);
 }
 
 function normalizeManifest(manifest) {
@@ -102,10 +125,12 @@ function validateLocalAssetPath(path, fieldName, requiredExtension = null) {
     lowerPath.includes("://") ||
     lowerPath.startsWith("//") ||
     lowerPath.startsWith("data:") ||
-    lowerPath.startsWith("blob:");
+    lowerPath.startsWith("blob:") ||
+    lowerPath.startsWith("/.netlify/") || // Backend function URLs
+    lowerPath.startsWith("/assets/"); // App-loadable paths
 
-  if (isExternal || path.includes("\\") || !path.startsWith("./assets/")) {
-    throw new Error(`${fieldName} must be a local ./assets/ path.`);
+  if (isExternal || path.includes("\\")) {
+    return; // External or app-served URLs are valid
   }
 
   if (path.includes("..")) {

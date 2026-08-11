@@ -1,4 +1,3 @@
-
 const REQUIRED_ELEMENTS = {
   app: "#app",
   arRoot: "#ar-root",
@@ -7,6 +6,7 @@ const REQUIRED_ELEMENTS = {
   startButton: "#start-ar",
   muteButton: "#mute-video",
   replayButton: "#replay-video",
+  lockinButton: "#lockin-video",
   status: "#status",
   errorMessage: "#error-message",
   scanGuide: "#scan-guide",
@@ -99,12 +99,13 @@ export function setCameraPermissionPopupVisible(isVisible) {
 }
 
 export function bindUIHandlers(handlers = {}) {
-  const { startButton, muteButton, replayButton, cameraPopupAllow, cameraPopupDeny } = getUIElements();
+  const { startButton, muteButton, replayButton, lockinButton, cameraPopupAllow, cameraPopupDeny } = getUIElements();
 
   if (boundHandlers) {
     startButton.removeEventListener("click", boundHandlers.start);
     muteButton.removeEventListener("click", boundHandlers.mute);
     replayButton.removeEventListener("click", boundHandlers.replay);
+    lockinButton.removeEventListener("click", boundHandlers.lockin);
     cameraPopupAllow?.removeEventListener("click", boundHandlers.cameraAllow);
     cameraPopupDeny?.removeEventListener("click", boundHandlers.cameraDeny);
   }
@@ -124,6 +125,7 @@ export function bindUIHandlers(handlers = {}) {
     start: safeCall("onStart"),
     mute: safeCall("onMuteToggle"),
     replay: safeCall("onReplay"),
+    lockin: safeCall("onLockin"),
     cameraAllow: safeCall("onCameraAllow"),
     cameraDeny: safeCall("onCameraDeny"),
   };
@@ -131,6 +133,7 @@ export function bindUIHandlers(handlers = {}) {
   startButton.addEventListener("click", boundHandlers.start);
   muteButton.addEventListener("click", boundHandlers.mute);
   replayButton.addEventListener("click", boundHandlers.replay);
+  lockinButton.addEventListener("click", boundHandlers.lockin);
   cameraPopupAllow?.addEventListener("click", boundHandlers.cameraAllow);
   cameraPopupDeny?.addEventListener("click", boundHandlers.cameraDeny);
 }

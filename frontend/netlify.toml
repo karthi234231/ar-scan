@@ -4,3 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Netlify Functions for admin upload + file serving
+[functions]
+  directory = "netlify/functions"

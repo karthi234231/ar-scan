@@ -182,7 +182,10 @@ async function startScanner() {
   setStatus("Loading scanner");
   try {
     markPerformance("manifest-load-start");
-    manifest = await loadExperienceManifest(APP_CONFIG.manifestSrc);
+    manifest = await loadExperienceManifest(
+      APP_CONFIG.manifestSrc,
+      APP_CONFIG.fallbackManifestSrc,
+    );
     markPerformance("manifest-load-end");
     measurePerformance("manifest load", "manifest-load-start", "manifest-load-end");
     markPerformance("asset-preflight-start");
@@ -476,6 +479,25 @@ function main() {
       // No Permissions API - try to start directly
       setStatus("Starting scanner...");
       startScanner();
+    }
+  }
+
+  // Lock-in button handler - locks video to target and enables rotate/zoom
+  function handleLockinClick() {
+    const videoPlane = videoPlanes.get(activeTargetIndex);
+    if (!videoPlane) return;
+
+    // Toggle lock state
+    videoPlane.locked = !videoPlane.locked;
+
+    if (videoPlane.locked) {
+      // Lock video to anchor group - position/rotation follows anchor
+      videoPlane.group.setAttribute("data-locked", "");
+      setStatus("Locked to target - use mouse to rotate/zoom");
+    } else {
+      // Unlock - video returns to original position
+      videoPlane.group.removeAttribute("data-locked");
+      setStatus("Point camera at the card");
     }
   }
 }

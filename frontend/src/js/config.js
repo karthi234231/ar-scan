@@ -1,5 +1,8 @@
 export const APP_CONFIG = {
-  manifestSrc: "/assets/manifest.json",
+  // Load manifest from backend function (admin uploads update this dynamically)
+  manifestSrc: "/.netlify/functions/manifest",
+  // Fallback to static assets if backend manifest is empty
+  fallbackManifestSrc: "/assets/manifest.json",
   targetSrc: "/assets/targets/card.mind",
   videoMp4Src: "/assets/video/overlay.mp4",
   videoWebmSrc: "/assets/video/overlay.webm",
