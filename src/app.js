@@ -152,10 +152,10 @@ async function requestCameraAccess() {
     const name = String(error?.name ?? "").toLowerCase();
 
     if (name === "notallowederror" || message.includes("permission")) {
-      return { granted: false, reason: "denied" };
+      return { granted: false, reason: "denied", error };
     }
     if (message.includes("insecure")) {
-      return { granted: false, reason: "insecure-context" };
+      return { granted: false, reason: "insecure-context", error };
     }
     return { granted: false, reason: "unknown", error };
   }
@@ -189,17 +189,13 @@ function checkCameraPermission() {
     navigator.permissions
       .query({ name: "camera" })
       .then((permission) => {
-        const updatePermission = (result) => {
-          permission.addEventListener("change", () => {
-            if (permission.state === "granted") {
-              setCameraPermissionPopupVisible(false);
-              setStatus("Ready to scan");
-              setStartEnabled(true);
-            }
-          });
-        };
-
-        updatePermission(permission);
+        permission.addEventListener("change", () => {
+          if (permission.state === "granted") {
+            setCameraPermissionPopupVisible(false);
+            setStatus("Ready to scan");
+            setStartEnabled(true);
+          }
+        });
 
         if (permission.state === "granted") {
           // Permission already granted
@@ -232,6 +228,60 @@ function checkCameraPermission() {
       setStartEnabled(true);
     }
   }
+}
+
+/**
+ * Formats an error object into a readable detail string for debugging.
+ * Includes error name, message, stack, and any additional properties.
+ */
+function formatErrorDetails(error) {
+  if (!error) {
+    return "No error details available";
+  }
+
+  const parts = [];
+
+  // Error name and message
+  const name = error.name || "Error";
+  const message = error.message || String(error);
+  parts.push(`${name}: ${message}`);
+
+  // Stack trace if available
+  if (error.stack) {
+    parts.push(`Stack: ${error.stack}`);
+  }
+
+  // Any additional properties (e.g., MindAR-specific error info)
+  for (const key of Object.keys(error)) {
+    if (key !== "name" && key !== "message" && key !== "stack") {
+      try {
+        const value = typeof error[key] === "object" ? JSON.stringify(error[key]) : String(error[key]);
+        parts.push(`${key}: ${value}`);
+      } catch (e) {
+        parts.push(`${key}: [unable to serialize]`);
+      }
+    }
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * Displays a detailed error popup with full error information for debugging.
+ * The popup shows the error name, message, stack trace, and additional details.
+ */
+function showDetailedError(title, error) {
+  const details = formatErrorDetails(error);
+  const fullMessage = `${title}\n\n${details}`;
+
+  // Set the error message in the UI
+  setError(fullMessage);
+
+  // Also log to console for desktop debugging
+  console.error(`[scanner] ${title}`, error);
+
+  // Show a detailed alert for immediate visibility
+  console.warn(`[DEBUG] ${title}:\n${details}`);
 }
 
 async function startScanner() {
@@ -305,6 +355,9 @@ async function startScanner() {
     setScanGuideVisible(true);
     setStatus("Point camera at the card");
   } catch (error) {
+    // Log full error details for debugging
+    console.error("[scanner] startScanner error:", error);
+    
     handleStartError(error);
     resetFailedStartup();
   } finally {
@@ -328,15 +381,19 @@ async function handleCameraAllow(event) {
   const result = await requestCameraAccess();
 
   if (result.granted) {
-    setStatus("Camera access granted");
+    setStatus("Camera access granted, starting scanner...");
     await startScanner();
   } else {
     if (result.reason === "denied") {
-      setError("Camera access was denied. Please enable camera permission in your browser settings.");
+      setError("Camera access was denied.\n\nPlease:\n1. Check browser settings for camera permission\n2. Tap the lock/icon in your browser's address bar\n3. Ensure camera is set to 'Allow'\n4. Reload the page and try again");
     } else if (result.reason === "insecure-context") {
       setError("Open this scanner from HTTPS or localhost.");
     } else {
-      setError("Camera access failed. Check browser settings and try again.");
+      // Show detailed error for unknown failures
+      showDetailedError(
+        "Camera access failed. Check browser settings and try again.",
+        result.error,
+      );
     }
     setStatus("Camera access required");
     setStartEnabled(true);
@@ -346,7 +403,7 @@ async function handleCameraAllow(event) {
 function handleCameraDeny(event) {
   event.preventDefault();
   setCameraPermissionPopupVisible(false);
-  setError("Camera access is required for AR scanning. Tap Start to try again.");
+  setError("Camera access is required for AR scanning.\n\nTo enable:\n1. Tap the Start button\n2. When prompted, tap 'Allow Camera'\n3. If denied, check browser settings");
   setStatus("Camera permission denied");
   setStartEnabled(true);
 }
@@ -555,7 +612,14 @@ function handleStartError(error) {
   setSessionState("error");
   setControlsVisible(false);
   setScanGuideVisible(false);
-  setError(getStartupErrorMessage(classifyStartupError(error)));
+
+  // Get detailed error info for debugging
+  const classified = classifyStartupError(error);
+  const detailedMessage = getStartupErrorMessage(classified);
+  const errorDetails = formatErrorDetails(error);
+
+  // Combine classified message with raw error details
+  setError(`${detailedMessage}\n\nDetails:\n${errorDetails}`);
   setStatus("Scanner unavailable");
 }
 
@@ -671,6 +735,7 @@ function main() {
   if (!support.supported) {
     setError(support.message);
   } else {
+    // Check camera permission and show popup if needed
     checkCameraPermission();
   }
 

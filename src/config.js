@@ -18,5 +18,5 @@ export const APP_CONFIG = {
   lostTargetDebounceMs: 400,
   maxDevicePixelRatio: 1.5,
   startMuted: true,
-  debug: false,
+  debug: true,
 };
