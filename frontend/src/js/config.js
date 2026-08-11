@@ -21,6 +21,17 @@ export const APP_CONFIG = {
   filterMinCF: 0.2,
   filterBeta: 1,
 
+  // Kalman filter for pose prediction - eliminates sub-frame latency
+  // by predicting future pose using velocity state.
+  // State: [px, py, pz, qx, qy, qz, qw, vx, vy, vz, ωx, ωy, ωz]
+  // Prediction: x_pred = F*x_prev, P_pred = F*P_prev*F^T + Q
+  // Update: K = P_pred*H^T*(H*P_pred*H^T + R)^-1
+  kalman: {
+    processNoise: 1e-3,
+    measurementNoise: 1e-2,
+    predictionHorizon: 16, // ms ahead (1 frame at 60fps)
+  },
+
   lostTargetDebounceMs: 400,
   maxDevicePixelRatio: 1,
   startMuted: true,

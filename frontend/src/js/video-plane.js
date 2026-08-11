@@ -1,5 +1,40 @@
-
 import * as THREE from "three";
+
+/**
+ * Classifies a video's orientation based on its intrinsic width/height.
+ * Modern browsers apply rotation metadata, so videoWidth/videoHeight
+ * already reflect the effective orientation.
+ * @param {number} width
+ * @param {number} height
+ * @returns {"vertical" | "horizontal" | "square"}
+ */
+export function classifyVideoOrientation(width, height) {
+  if (!width || !height) return "square";
+  const ratio = width / height;
+  if (ratio < 0.9) return "vertical"; // e.g. Instagram Reels 9:16
+  if (ratio > 1.1) return "horizontal"; // e.g. YouTube 16:9
+  return "square"; // 1:1
+}
+
+/**
+ * Computes plane scale for a given orientation so the video covers
+ * the card without manual intervention.
+ * - vertical:   Sx = 1, Sy = 1/AR (tall)
+ * - horizontal: Sx = AR, Sy = 1 (wide)
+ * - square:     Sx = Sy = 1
+ * @param {"vertical" | "horizontal" | "square"} orientation
+ * @param {number} aspectRatio width/height
+ * @returns {{ scaleX: number, scaleY: number }}
+ */
+export function computeOrientationScale(orientation, aspectRatio) {
+  if (orientation === "vertical") {
+    return { scaleX: 1, scaleY: 1 / (aspectRatio || 1) };
+  }
+  if (orientation === "horizontal") {
+    return { scaleX: aspectRatio || 1, scaleY: 1 };
+  }
+  return { scaleX: 1, scaleY: 1 };
+}
 
 export function createVideoElement(experience, defaults = {}) {
   const video = document.createElement("video");
@@ -68,6 +103,53 @@ export function createVideoPlane(experience, defaults = {}) {
     experience.overlayZOffset ?? defaults.overlayZOffset ?? 0,
   );
 
+  // Orientation auto-detection + dynamic scaling ---------------------------------
+  let currentOrientation = "square";
+  let orientationScale = { scaleX: 1, scaleY: 1 };
+
+  /**
+   * Applies orientation-based scale to the mesh, centered at (0,0,0).
+   * This keeps the video's center aligned with the card's center.
+   */
+  function applyOrientationScale() {
+    const baseW = planeWidth;
+    const baseH = planeHeight;
+    mesh.scale.set(
+      baseW * orientationScale.scaleX,
+      baseH * orientationScale.scaleY,
+      1,
+    );
+  }
+
+  /**
+   * Called once metadata has loaded. Reads videoWidth/videoHeight,
+   * classifies orientation, and recomputes the plane scale.
+   */
+  function handleMetadata() {
+    const w = video.videoWidth || 0;
+    const h = video.videoHeight || 0;
+    if (!w || !h) return;
+
+    const aspect = w / h;
+    currentOrientation = classifyVideoOrientation(w, h);
+    orientationScale = computeOrientationScale(currentOrientation, aspect);
+
+    if (defaults.debug) {
+      console.debug(
+        `[video-plane] ${experience.id}: ${w}x${h} (AR=${aspect.toFixed(2)}, ${currentOrientation}) -> scale=${JSON.stringify(orientationScale)}`,
+      );
+    }
+
+    applyOrientationScale();
+  }
+
+  video.addEventListener("loadedmetadata", handleMetadata, { once: true });
+  // Fallback if metadata loads before listener or edge cases
+  if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+    handleMetadata();
+  }
+  // -----------------------------------------------------------------------------
+
   async function play() {
     if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
       await waitForVideoEvent(video, "loadedmetadata", 5000);
@@ -96,6 +178,7 @@ export function createVideoPlane(experience, defaults = {}) {
 
   function dispose() {
     pause();
+    video.removeEventListener("loadedmetadata", handleMetadata);
     mesh.removeFromParent();
     texture.dispose();
     material.dispose();
@@ -114,6 +197,9 @@ export function createVideoPlane(experience, defaults = {}) {
     material,
     geometry,
     mesh,
+    get orientation() {
+      return currentOrientation;
+    },
     play,
     pause,
     replay,

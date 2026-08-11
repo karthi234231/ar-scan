@@ -1,25 +1,17 @@
 import { MindARThree } from "mindar-image-three";
+import { KalmanPoseFilter } from "./kalman-pose-filter.js";
 
 /**
  * Creates a MindAR image-tracking AR session that manages camera access,
  * target detection, video overlay anchors, and the Three.js render loop.
- *
- * @param {object} config                  - Runtime configuration (spread from APP_CONFIG + manifest).
- * @param {string} config.targetSrc        - Path to the compiled `.mind` target file.
- * @param {Array}  [config.experiences]    - Experience descriptors from the manifest.
- * @param {number} [config.maxDevicePixelRatio] - Caps renderer pixel ratio.
- * @param {object} [handlers]              - Session-level event handlers.
- * @param {Function} [handlers.onTargetFound]  - Called with targetIndex when a target appears.
- * @param {Function} [handlers.onTargetLost]   - Called with targetIndex when a target disappears.
- * @returns {{ getAnchor: Function, start: Function, dispose: Function }}
+ * Uses a Kalman filter for pose prediction to reduce latency and jitter.
  */
 export function createARSession(config, handlers = {}) {
   const {
     targetSrc,
     experiences = [],
     maxDevicePixelRatio = 1.5,
-    // Pull only what MindAR needs; the rest (video paths, aspect ratios, etc.)
-    // belong to the video-plane layer and are ignored here.
+    kalman = null, // { processNoise, measurementNoise, predictionHorizon }
   } = config;
 
   const { onTargetFound, onTargetLost } = handlers;
@@ -44,19 +36,18 @@ export function createARSession(config, handlers = {}) {
     missTolerance: 1,
   });
 
-  // Renderer optimizations
   mindAR.renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, maxDevicePixelRatio),
   );
 
   const anchors = new Map();
+  // Per-anchor Kalman filter for pose prediction
+  const kalmanFilters = new Map();
 
   for (const experience of experiences) {
     const targetIndex = experience.targetIndex;
     const anchor = mindAR.addAnchor(targetIndex);
 
-    // MindAR calls these with no arguments; forward the targetIndex so the
-    // app layer can look up the matching experience.
     if (typeof onTargetFound === "function") {
       anchor.onTargetFound = () => onTargetFound(targetIndex);
     }
@@ -65,17 +56,47 @@ export function createARSession(config, handlers = {}) {
     }
 
     anchors.set(targetIndex, anchor);
+
+    // Create a Kalman filter for this anchor
+    if (kalman) {
+      kalmanFilters.set(targetIndex, new KalmanPoseFilter(kalman));
+    }
   }
 
   let animationFrameId = null;
 
-  function startAnimationLoop() {
-    function render() {
-      mindAR.renderer.render(mindAR.scene, mindAR.camera);
-      mindAR.cssRenderer.render(mindAR.cssScene, mindAR.camera);
-      animationFrameId = requestAnimationFrame(render);
+  function render() {
+    // Apply Kalman-filtered pose to each detected anchor's group
+    for (const [targetIndex, kalmanFilter] of kalmanFilters) {
+      const anchor = anchors.get(targetIndex);
+      if (!anchor) continue;
+
+      // Only update if the target is currently visible
+      if (anchor.group.visible) {
+        const rawPos = anchor.group.position;
+        const rawQuat = anchor.group.quaternion;
+
+        const filtered = kalmanFilter.update(
+          rawPos,
+          rawQuat,
+          performance.now(),
+        );
+
+        // Apply filtered pose directly to the group
+        anchor.group.position.copy(filtered.position);
+        anchor.group.quaternion.copy(filtered.quaternion);
+      } else {
+        // Reset the filter when target is lost to avoid stale state
+        kalmanFilter.reset();
+      }
     }
 
+    mindAR.renderer.render(mindAR.scene, mindAR.camera);
+    mindAR.cssRenderer.render(mindAR.cssScene, mindAR.camera);
+    animationFrameId = requestAnimationFrame(render);
+  }
+
+  function startAnimationLoop() {
     animationFrameId = requestAnimationFrame(render);
   }
 
@@ -89,27 +110,15 @@ export function createARSession(config, handlers = {}) {
   return {
     mindAR,
 
-    /**
-     * Returns the anchor (THREE.Group container) for a given target index.
-     * @param {number} targetIndex
-     * @returns {{ group: THREE.Group, ... } | undefined}
-     */
     getAnchor(targetIndex) {
       return anchors.get(targetIndex);
     },
 
-    /**
-     * Starts the camera, loads the target database, and begins the render loop.
-     */
     async start() {
       await mindAR.start();
       startAnimationLoop();
     },
 
-    /**
-     * Fully tears down the session: stops video, removes DOM elements,
-     * disposes WebGL context, and clears anchors.
-     */
     dispose() {
       stopAnimationLoop();
       try {
@@ -123,6 +132,7 @@ export function createARSession(config, handlers = {}) {
       mindAR.renderer.dispose();
       mindAR.cssRenderer.dispose();
       anchors.clear();
+      kalmanFilters.clear();
     },
   };
 }
