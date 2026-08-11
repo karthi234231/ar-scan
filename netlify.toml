@@ -1,6 +1,6 @@
 [build]
   # Use Vite to build the project
-  command = "npx vite build"
+  command = "npx vite build && node -e \"const fs=require('fs'),p=require('path');const src='assets',dst='dist/assets';if(!fs.existsSync(dst)){fs.mkdirSync(dst,{recursive:true})}function cp(d){const e=fs.readdirSync(d);for(const f of e){const s=p.join(d,f),t=p.join(dst,f);fs.cpSync(s,t,{recursive:true})}}cp(src);console.log('Assets copied to dist/assets/')"
   publish = "dist"
 
 [build.environment]
