@@ -17,20 +17,25 @@ export function classifyVideoOrientation(width, height) {
 }
 
 /**
- * Computes plane scale for a given orientation so the video covers
- * the card without manual intervention.
- * - vertical:   Sx = 1, Sy = 1/AR (tall)
- * - horizontal: Sx = AR, Sy = 1 (wide)
- * - square:     Sx = Sy = 1
+ * Computes the mesh scale so the video displays in its native aspect ratio.
+ *
+ * The geometry is created as a SQUARE base (overlayWidth x overlayWidth).
+ * We then scale it based on the actual video aspect ratio:
+ *   - vertical (AR < 1):   scale = (1, 1/AR, 1)  → tall
+ *   - horizontal (AR > 1): scale = (AR, 1, 1)    → wide
+ *   - square (AR ≈ 1):     scale = (1, 1, 1)     → square
+ *
  * @param {"vertical" | "horizontal" | "square"} orientation
  * @param {number} aspectRatio width/height
  * @returns {{ scaleX: number, scaleY: number }}
  */
 export function computeOrientationScale(orientation, aspectRatio) {
   if (orientation === "vertical") {
+    // AR < 1, e.g. 0.5625 (9:16) → scaleY = 1/0.5625 = 1.778 → tall
     return { scaleX: 1, scaleY: 1 / (aspectRatio || 1) };
   }
   if (orientation === "horizontal") {
+    // AR > 1, e.g. 1.778 (16:9) → scaleX = 1.778 → wide
     return { scaleX: aspectRatio || 1, scaleY: 1 };
   }
   return { scaleX: 1, scaleY: 1 };
@@ -83,15 +88,16 @@ export function createVideoPlane(experience, defaults = {}) {
 
   const cardAspectRatio =
     experience.cardAspectRatio ?? defaults.cardAspectRatio ?? 1;
-  const videoAspectRatio =
-    experience.videoAspectRatio ?? defaults.videoAspectRatio ?? cardAspectRatio;
   const overlayWidth = experience.overlayWidth ?? defaults.overlayWidth ?? 1;
   const coverFullCard = experience.coverFullCard ?? defaults.coverFullCard ?? true;
 
+  // IMPORTANT: Create a SQUARE base geometry (overlayWidth x overlayWidth).
+  // The actual video aspect ratio is applied via mesh.scale after metadata loads.
+  // This ensures vertical videos display tall and horizontal videos display wide.
   const planeWidth = overlayWidth;
   const planeHeight = coverFullCard
     ? overlayWidth / cardAspectRatio
-    : overlayWidth / videoAspectRatio;
+    : overlayWidth; // square base for floating player
 
   const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
   const mesh = new THREE.Mesh(geometry, material);
@@ -109,9 +115,8 @@ export function createVideoPlane(experience, defaults = {}) {
 
   /**
    * Applies orientation-based scale to the mesh, centered at (0,0,0).
-   * This keeps the video's center aligned with the card's center.
-   * The geometry already has the correct base dimensions, so we only
-   * apply the aspect-ratio adjustment from orientation detection.
+   * The geometry is a square base, so scaling by (1, 1/AR) makes it tall
+   * for vertical videos, and (AR, 1) makes it wide for horizontal videos.
    */
   function applyOrientationScale() {
     mesh.scale.set(
