@@ -37,9 +37,14 @@ export function createARSession(config, handlers = {}) {
     uiLoading: "no",
     uiScanning: "no",
     uiError: "no",
+    // Aggressive OneEuroFilter: minimize lag (~5ms instead of ~1000ms)
+    filterMinCF: config.filterMinCF ?? 0.2,
+    filterBeta: config.filterBeta ?? 1,
+    warmupTolerance: 1,
+    missTolerance: 1,
   });
 
-  // Cap pixel ratio for performance on mobile devices.
+  // Renderer optimizations
   mindAR.renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, maxDevicePixelRatio),
   );

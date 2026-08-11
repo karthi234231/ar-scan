@@ -6,7 +6,7 @@ export function createVideoElement(experience, defaults = {}) {
   video.id = `video-source-${experience.id}`;
   video.playsInline = true;
   video.muted = defaults.startMuted ?? true;
-  video.loop = false;
+  video.loop = true;
   video.preload = "metadata";
   video.poster = experience.posterSrc;
   video.style.display = "none";
@@ -16,6 +16,9 @@ export function createVideoElement(experience, defaults = {}) {
   video.setAttribute("webkit-playsinline", "");
   video.setAttribute("x-webkit-airplay", "deny");
   video.setAttribute("controlslist", "nodownload noplaybackrate noremoreplayback");
+  video.setAttribute("preload", "metadata");
+  video.setAttribute("playsinline", "");
+  video.autoplay = true;
 
   appendVideoSource(video, experience.videoMp4Src, "video/mp4");
 
@@ -62,7 +65,7 @@ export function createVideoPlane(experience, defaults = {}) {
   mesh.position.set(
     experience.overlayXOffset ?? defaults.overlayXOffset ?? 0,
     experience.overlayYOffset ?? defaults.overlayYOffset ?? 0,
-    experience.overlayZOffset ?? defaults.overlayZOffset ?? 0.01,
+    experience.overlayZOffset ?? defaults.overlayZOffset ?? 0,
   );
 
   async function play() {
