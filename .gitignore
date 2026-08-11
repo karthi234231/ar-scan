@@ -13,6 +13,9 @@ vite-server.log
 compile-src/
 package/
 mindar-compiler-src/
-
-# Local Netlify folder
-.netlify
+.netlify/
+admin-backend/node_modules/
+admin-backend/uploads/
+admin-dashboard/node_modules/
+admin-dashboard/dist/
+.env

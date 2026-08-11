@@ -1,10 +1,10 @@
 {
-  "name": "ar",
+  "name": "ar-frontend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "WebAR card scanner frontend",
+  "type": "commonjs",
   "scripts": {
-    "build": "npx vite build && node copy-assets.mjs",
+    "build": "npx vite build && node tools/copy-assets.mjs",
     "preview": "npx vite preview",
     "start": "npx vite",
     "test": "node -e \"console.log('Basic validation passed')\""
@@ -12,7 +12,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "devDependencies": {
     "@maherboughdiri/mind-ar-compiler": "^1.0.1",
     "@msgpack/msgpack": "^3.1.3",

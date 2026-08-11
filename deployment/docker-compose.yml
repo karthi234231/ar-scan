@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ../admin-backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../admin-backend/.env
+    volumes:
+      - uploads:/app/uploads
+
+  dashboard:
+    build: ../admin-dashboard
+    ports:
+      - "3002:3002"
+
+volumes:
+  uploads:

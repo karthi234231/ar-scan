@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join } from "path";
 
-const src = "assets";
+const src = "public/assets";
 const dst = "dist/assets";
 
 if (!existsSync(dst)) {

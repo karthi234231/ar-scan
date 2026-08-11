@@ -1,9 +1,9 @@
 export const APP_CONFIG = {
-  manifestSrc: "./assets/manifest.json",
-  targetSrc: "./assets/targets/card.mind",
-  videoMp4Src: "./assets/video/overlay.mp4",
-  videoWebmSrc: "./assets/video/overlay.webm",
-  posterSrc: "./assets/poster/video-poster.jpg",
+  manifestSrc: "/assets/manifest.json",
+  targetSrc: "/assets/targets/card.mind",
+  videoMp4Src: "/assets/video/overlay.mp4",
+  videoWebmSrc: "/assets/video/overlay.webm",
+  posterSrc: "/assets/poster/video-poster.jpg",
 
   // Width divided by height. Update this to match the printed card artwork.
   cardAspectRatio: 0.714,
