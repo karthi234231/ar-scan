@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npx vite build",
+    "build": "npx vite build && node copy-assets.mjs",
     "preview": "npx vite preview",
     "start": "npx vite",
     "test": "node -e \"console.log('Basic validation passed')\""
