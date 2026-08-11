@@ -110,13 +110,13 @@ export function createVideoPlane(experience, defaults = {}) {
   /**
    * Applies orientation-based scale to the mesh, centered at (0,0,0).
    * This keeps the video's center aligned with the card's center.
+   * The geometry already has the correct base dimensions, so we only
+   * apply the aspect-ratio adjustment from orientation detection.
    */
   function applyOrientationScale() {
-    const baseW = planeWidth;
-    const baseH = planeHeight;
     mesh.scale.set(
-      baseW * orientationScale.scaleX,
-      baseH * orientationScale.scaleY,
+      orientationScale.scaleX,
+      orientationScale.scaleY,
       1,
     );
   }

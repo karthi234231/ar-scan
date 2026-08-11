@@ -75,6 +75,11 @@ export function setStartEnabled(isEnabled) {
   startButton.disabled = !isEnabled;
 }
 
+export function setStartVisible(isVisible) {
+  const { startButton } = getUIElements();
+  startButton.hidden = !isVisible;
+}
+
 export function setMutedState(isMuted) {
   const { muteButton } = getUIElements();
   muteButton.textContent = isMuted ? "Unmute" : "Mute";

@@ -9,6 +9,7 @@ import {
   setMutedState,
   setScanGuideVisible,
   setStartEnabled,
+  setStartVisible,
   setStatus,
 } from "./ui.js";
 import { APP_CONFIG } from "./config.js";
@@ -446,9 +447,37 @@ function main() {
   setStatus(support.supported ? support.message : "Scanner unavailable");
   if (!support.supported) setError(support.message);
   else checkCameraPermission();
+
+  // Hide the Start button when autoStart is enabled - scanner starts automatically
+  if (APP_CONFIG.autoStart) {
+    setStartVisible(false);
+  }
   bindUIHandlers({ onStart: startScanner, onMuteToggle: toggleMute, onReplay: replayVideo, onCameraAllow: handleCameraAllow, onCameraDeny: handleCameraDeny });
   document.addEventListener("visibilitychange", handleVisibilityChange);
   window.addEventListener("beforeunload", handleBeforeUnload);
+
+  // Auto-start the scanner when camera permission is already granted
+  if (APP_CONFIG.autoStart && support.supported) {
+    // Check if permission is already granted
+    if (typeof navigator.permissions !== "undefined" && navigator.permissions.query) {
+      navigator.permissions.query({ name: "camera" }).then((permission) => {
+        if (permission.state === "granted") {
+          // Permission already granted - start immediately
+          setStatus("Starting scanner...");
+          startScanner();
+        }
+        // If "prompt", the user will tap Allow on the popup
+      }).catch(() => {
+        // Permissions API not available - try to start directly
+        setStatus("Starting scanner...");
+        startScanner();
+      });
+    } else {
+      // No Permissions API - try to start directly
+      setStatus("Starting scanner...");
+      startScanner();
+    }
+  }
 }
 
 main();
